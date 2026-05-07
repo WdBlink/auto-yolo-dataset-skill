@@ -149,7 +149,8 @@ async function main() {
   if (!options.dryRun) {
     console.log("");
     console.log("Done. Restart or refresh your agent session if the skill list was already loaded.");
-    console.log("Trigger with: $auto-yolo-dataset");
+    console.log("Trigger in Codex with: $auto-yolo-dataset");
+    console.log("Trigger in Claude Code with: /auto-yolo-dataset");
   }
 }
 

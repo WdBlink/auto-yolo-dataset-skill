@@ -32,8 +32,14 @@ npx auto-yolo-dataset-skill --dry-run
 
 `--target` expects a skills root directory. For example, pass `~/.codex/skills`, not `~/.codex/skills/auto-yolo-dataset`.
 
-Use the skill with:
+Use the skill in Codex with:
 
 ```text
 $auto-yolo-dataset
+```
+
+Use the skill in Claude Code with:
+
+```text
+/auto-yolo-dataset
 ```
