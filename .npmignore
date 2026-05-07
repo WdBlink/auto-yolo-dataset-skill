@@ -1,0 +1,12 @@
+.DS_Store
+.git/
+.opc/
+dataset/
+images/
+reports/
+tests/
+tmp/
+detections.json
+*.tgz
+__pycache__/
+*.pyc

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auto YOLO Dataset"
+  short_description: "Build YOLO detection datasets."
+  default_prompt: "Create YOLO labels and detection dataset assets for these images."

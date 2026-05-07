@@ -1,0 +1,22 @@
+.DS_Store
+.opc/
+
+# Generated sample inputs/outputs
+dataset/
+images/
+reports/
+tmp/
+detections.json
+
+# Local package artifacts
+*.tgz
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Node caches
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

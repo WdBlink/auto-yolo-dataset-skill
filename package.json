@@ -1,0 +1,33 @@
+{
+  "name": "auto-yolo-dataset-skill",
+  "version": "0.1.0",
+  "description": "One-command installer for the auto-yolo-dataset Codex/Claude Code skill.",
+  "type": "module",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "bin": {
+    "auto-yolo-dataset-skill": "bin/install.mjs",
+    "install-auto-yolo-dataset": "bin/install.mjs"
+  },
+  "files": [
+    "bin/install.mjs",
+    "auto-yolo-dataset/SKILL.md",
+    "auto-yolo-dataset/agents/openai.yaml",
+    "auto-yolo-dataset/references/*.md",
+    "auto-yolo-dataset/scripts/build_yolo_dataset.py",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node bin/install.mjs --dry-run && node tests/packaging-smoke.mjs"
+  },
+  "keywords": [
+    "codex-skill",
+    "claude-code-skill",
+    "yolo",
+    "object-detection",
+    "dataset",
+    "annotations"
+  ],
+  "license": "MIT"
+}
