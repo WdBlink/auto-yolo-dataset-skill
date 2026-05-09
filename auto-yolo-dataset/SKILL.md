@@ -38,6 +38,33 @@ If running under Claude Code only, use `$HOME/.claude/skills/auto-yolo-dataset` 
 5. Inspect the generated `validation.json`. If `--visualize` was used, review `visualizations/index.html` or the per-image SVG overlays. Fix any manifest errors and rerun until the command exits 0.
 6. Return the dataset path, class list, split counts, and any limitations in the visual annotations.
 
+## Remote Local Detector Mode
+
+On the DGX Spark deployment, do not use Claude Code's controller model for visual detection. The controller only invokes the workflow. Generate the detection manifest by calling the local Gemma 4 detector script, then run the standard builder:
+
+```bash
+AUTO_YOLO_DATASET_SKILL="$HOME/.claude/skills/auto-yolo-dataset"
+python "$AUTO_YOLO_DATASET_SKILL/scripts/detect_with_gemma4.py" \
+  --image-dir images \
+  --classes "卡车" \
+  --manifest detections.json \
+  --timeout 300 \
+  --max-new-tokens 256
+
+python "$AUTO_YOLO_DATASET_SKILL/scripts/build_yolo_dataset.py" \
+  --manifest detections.json \
+  --output dataset \
+  --image-root images \
+  --visualize
+```
+
+The local detector service must be running on `127.0.0.1:11500`:
+
+```bash
+systemctl --user status gemma4-vision.service
+curl http://127.0.0.1:11500/health
+```
+
 ## Model Contract
 
 Read `references/annotation-contract.md` before writing or accepting a manifest. The same manifest is the integration boundary for Codex vision, Claude Code vision, Gamma 4, or any external detector.

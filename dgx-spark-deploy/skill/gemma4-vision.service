@@ -1,0 +1,19 @@
+[Unit]
+Description=Gemma 4 local vision detector for auto-yolo-dataset
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/c301/.claude/skills/auto-yolo-dataset/scripts
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+Environment=GEMMA4_HOST=127.0.0.1
+Environment=GEMMA4_PORT=11500
+Environment=GEMMA4_MODEL_DIR=/home/c301/models/gemma-4-31B-it
+Environment=GEMMA4_MAX_NEW_TOKENS=128
+ExecStart=/usr/bin/python3 /home/c301/.claude/skills/auto-yolo-dataset/scripts/gemma4_vision_service.py --load-at-start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
