@@ -5,8 +5,10 @@ After=default.target
 [Service]
 Type=simple
 WorkingDirectory=/home/c301/dgx-spark-deploy/proxy
-Environment=OLLAMA_MODEL=qwen2.5:32b-instruct
+Environment=OLLAMA_MODEL=gemma-4-31B-it
 Environment=OLLAMA_URL=http://127.0.0.1:11434
+Environment=GEMMA_CHAT_URL=http://127.0.0.1:11500/chat
+Environment=GEMMA_CHAT_MAX_TOKENS=256
 Environment=PROXY_HOST=127.0.0.1
 Environment=PROXY_PORT=11435
 ExecStart=/usr/bin/python3 /home/c301/dgx-spark-deploy/proxy/ollama_anthropic_proxy.py

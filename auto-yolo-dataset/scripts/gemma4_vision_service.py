@@ -132,6 +132,41 @@ def detect(model: Any, processor: Any, image_path: Path, classes: list[str], max
     return {"width": width, "height": height, "detections": normalized, "raw": text}
 
 
+def chat(model: Any, processor: Any, messages: list[dict[str, str]], max_new_tokens: int) -> str:
+    import torch
+
+    prompt_messages = []
+    system_parts: list[str] = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        if role == "system":
+            system_parts.append(str(msg.get("content", "")))
+            continue
+        if role not in {"user", "assistant"}:
+            role = "user"
+        prompt_messages.append({"role": role, "content": [{"type": "text", "text": str(msg.get("content", ""))}]})
+    if system_parts:
+        system_text = "\n\n".join(part for part in system_parts if part)
+        if prompt_messages and prompt_messages[0]["role"] == "user":
+            prompt_messages[0]["content"][0]["text"] = system_text + "\n\n" + prompt_messages[0]["content"][0]["text"]
+        else:
+            prompt_messages.insert(0, {"role": "user", "content": [{"type": "text", "text": system_text}]})
+    if not prompt_messages:
+        prompt_messages = [{"role": "user", "content": [{"type": "text", "text": ""}]}]
+    inputs = processor.apply_chat_template(
+        prompt_messages,
+        add_generation_prompt=True,
+        tokenize=True,
+        return_dict=True,
+        return_tensors="pt",
+    )
+    inputs = {k: v.to(model.device) if hasattr(v, "to") else v for k, v in inputs.items()}
+    with torch.inference_mode():
+        output = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+    input_len = inputs["input_ids"].shape[-1]
+    return processor.decode(output[0][input_len:], skip_special_tokens=True).strip()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "Gemma4VisionService/0.1"
 
@@ -146,20 +181,28 @@ class Handler(BaseHTTPRequestHandler):
         json_response(self, 404, {"error": "not found"})
 
     def do_POST(self) -> None:
-        if self.path.split("?", 1)[0].rstrip("/") != "/detect":
+        request_path = self.path.split("?", 1)[0].rstrip("/")
+        if request_path not in {"/detect", "/chat"}:
             json_response(self, 404, {"error": "not found"})
             return
         try:
             length = int(self.headers.get("Content-Length") or "0")
             payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+            model, processor = load_model(self.server.model_dir)
+            max_new_tokens = int(payload.get("max_new_tokens") or self.server.max_new_tokens)
+            if request_path == "/chat":
+                messages = payload.get("messages", [])
+                if not isinstance(messages, list):
+                    raise ValueError("messages must be a list")
+                result = chat(model, processor, messages, max_new_tokens)
+                json_response(self, 200, {"ok": True, "text": result})
+                return
             image_path = Path(str(payload["image_path"])).expanduser().resolve()
             classes = payload["classes"]
             if not isinstance(classes, list) or not all(isinstance(item, str) and item for item in classes):
                 raise ValueError("classes must be a non-empty string list")
             if not image_path.exists():
                 raise ValueError(f"image not found: {image_path}")
-            model, processor = load_model(self.server.model_dir)
-            max_new_tokens = int(payload.get("max_new_tokens") or self.server.max_new_tokens)
             result = detect(model, processor, image_path, classes, max_new_tokens)
             json_response(self, 200, {"ok": True, **result})
         except Exception as exc:

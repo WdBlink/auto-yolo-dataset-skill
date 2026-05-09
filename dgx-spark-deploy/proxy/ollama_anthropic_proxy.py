@@ -68,6 +68,31 @@ def call_ollama(payload: dict[str, Any], model: str, ollama_url: str) -> str:
     return str(result.get("message", {}).get("content", ""))
 
 
+def call_gemma_chat(payload: dict[str, Any], gemma_chat_url: str) -> str:
+    max_tokens = int(payload.get("max_tokens") or 1024)
+    max_tokens = min(max_tokens, int(os.environ.get("GEMMA_CHAT_MAX_TOKENS", "256")))
+    request = {
+        "messages": anthropic_to_ollama_messages(payload),
+        "max_new_tokens": max_tokens,
+    }
+    data = json.dumps(request).encode("utf-8")
+    req = urllib.request.Request(
+        gemma_chat_url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=int(os.environ.get("GEMMA_CHAT_TIMEOUT", "900"))) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Gemma chat HTTP {exc.code}: {body}") from exc
+    if not result.get("ok"):
+        raise RuntimeError(result.get("error") or "Gemma chat request failed")
+    return str(result.get("text", ""))
+
+
 def sse(event: str, data: dict[str, Any]) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
 
@@ -104,7 +129,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or "0")
             payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-            text = call_ollama(payload, self.server.model, self.server.ollama_url)
+            if self.server.gemma_chat_url:
+                text = call_gemma_chat(payload, self.server.gemma_chat_url)
+            else:
+                text = call_ollama(payload, self.server.model, self.server.ollama_url)
         except (ValueError, urllib.error.URLError, TimeoutError) as exc:
             self.send_json(500, {"error": {"type": "proxy_error", "message": str(exc)}})
             return
@@ -175,10 +203,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class ProxyServer(ThreadingHTTPServer):
-    def __init__(self, address: tuple[str, int], model: str, ollama_url: str):
+    def __init__(self, address: tuple[str, int], model: str, ollama_url: str, gemma_chat_url: str | None):
         super().__init__(address, Handler)
         self.model = model
         self.ollama_url = ollama_url
+        self.gemma_chat_url = gemma_chat_url
 
 
 def main() -> None:
@@ -187,9 +216,11 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=int(os.environ.get("PROXY_PORT", "11435")))
     parser.add_argument("--model", default=os.environ.get("OLLAMA_MODEL", "minimax-m2.5:iq4_xs"))
     parser.add_argument("--ollama-url", default=os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"))
+    parser.add_argument("--gemma-chat-url", default=os.environ.get("GEMMA_CHAT_URL"))
     args = parser.parse_args()
-    server = ProxyServer((args.host, args.port), args.model, args.ollama_url)
-    print(f"proxy listening on http://{args.host}:{args.port} -> {args.ollama_url} model={args.model}", flush=True)
+    server = ProxyServer((args.host, args.port), args.model, args.ollama_url, args.gemma_chat_url)
+    upstream = args.gemma_chat_url or f"{args.ollama_url} model={args.model}"
+    print(f"proxy listening on http://{args.host}:{args.port} -> {upstream}", flush=True)
     server.serve_forever()
 
 
